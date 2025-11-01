@@ -1,14 +1,13 @@
 # Harvard Library MCP Server
 
-A Model Context Protocol (MCP) server for the Harvard University Library catalog API, providing both stdio and HTTP interfaces for comprehensive bibliographic search and metadata retrieval.
+A Model Context Protocol (MCP) server for the Harvard University Library catalog API, providing stdio interface for comprehensive bibliographic search and metadata retrieval.
 
 ## Features
 
 - **Comprehensive Search**: Basic keyword search, advanced fielded search, collection-specific search
 - **Rich Metadata**: Native MODS XML format support with structured JSON conversion
-- **Dual Interface**: Both stdio transport for local use and HTTP streaming for remote access
+- **Stdio Interface**: MCP stdio transport for AI assistant integration
 - **Python Implementation**: Robust async HTTP client with proper error handling
-- **Docker Ready**: Containerized deployment with health checks
 - **Rate Limited**: Respectful API usage with built-in rate limiting
 
 ## Quick Start
@@ -23,23 +22,9 @@ pip install -e .
 
 # Run as MCP server (stdio)
 python -m harvard_library_mcp.server
-
-# Run HTTP server
-python -m harvard_library_mcp.http_server
 ```
 
-### Docker Deployment
-
-```bash
-# Build and run
-docker build -t harvard-library-mcp .
-docker run -p 8000:8000 harvard-library-mcp
-
-# Or with docker-compose
-docker-compose up
-```
-
-## API Endpoints
+## MCP Tools
 
 The MCP server provides the following tools:
 

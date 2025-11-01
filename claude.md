@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is **harvard-library-mcp**, a Model Context Protocol (MCP) server that provides access to Harvard University Library's catalog API through both stdio and HTTP interfaces. It enables AI assistants to search comprehensive bibliographic records, retrieve metadata in native MODS XML format, and access collection-specific information from one of the world's largest academic library collections.
+This is **harvard-library-mcp**, a Model Context Protocol (MCP) server that provides access to Harvard University Library's catalog API through stdio interface. It enables AI assistants to search comprehensive bibliographic records, retrieve metadata in native MODS XML format, and access collection-specific information from one of the world's largest academic library collections.
 
 ## Development Commands
 
@@ -29,13 +29,8 @@ pip install harvard-library-mcp
 python -m harvard_library_mcp.server
 harvard-library-mcp  # Using installed command
 
-# Run HTTP server (for REST API access)
-python -m harvard_library_mcp.http_server
-harvard-library-mcp-http  # Using installed command
-
-# Using Make shortcuts
+# Using Make shortcut
 make run-mcp      # Start MCP server
-make run-http     # Start HTTP server
 ```
 
 ### Testing

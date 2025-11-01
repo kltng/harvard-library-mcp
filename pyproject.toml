@@ -23,8 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Text Processing :: Markup :: XML",
-    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
-]
+  ]
 
 dependencies = [
     "mcp>=1.0.0",
@@ -32,8 +31,6 @@ dependencies = [
     "pydantic>=2.8.0",
     "xmltodict>=0.13.0",
     "python-dotenv>=1.0.0",
-    "fastapi>=0.112.0",
-    "uvicorn[standard]>=0.30.0",
     "lxml>=5.2.0",
 ]
 
@@ -66,7 +63,6 @@ test = [
 
 [project.scripts]
 harvard-library-mcp = "harvard_library_mcp.server:cli_main"
-harvard-library-mcp-http = "harvard_library_mcp.http_server:main"
 
 [project.urls]
 Homepage = "https://github.com/kltang/harvard-library-mcp"
@@ -128,7 +124,6 @@ ignore_missing_imports = true
 minversion = "8.0"
 addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]
-asyncio_mode = "auto"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",

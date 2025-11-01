@@ -35,27 +35,9 @@ class Settings(BaseSettings):
     )
 
     # Server Configuration
-    host: str = Field(
-        default="0.0.0.0",
-        description="Host to bind the server to"
-    )
-    port: int = Field(
-        default=8000,
-        description="Port to bind the server to"
-    )
     log_level: str = Field(
         default="INFO",
         description="Logging level"
-    )
-
-    # HTTP Server Configuration
-    http_workers: int = Field(
-        default=1,
-        description="Number of worker processes for HTTP server"
-    )
-    http_reload: bool = Field(
-        default=False,
-        description="Enable auto-reload for HTTP server in development"
     )
 
     # Cache Configuration

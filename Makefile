@@ -1,6 +1,6 @@
 # Harvard Library MCP Server Makefile
 
-.PHONY: help install install-dev test test-coverage lint format clean build docker-build docker-run docker-stop
+.PHONY: help install install-dev test test-coverage lint format clean build run-mcp
 
 # Default target
 help:
@@ -14,10 +14,8 @@ help:
 	@echo "  format        Format code with black and isort"
 	@echo "  clean         Clean build artifacts"
 	@echo "  build         Build package"
-	@echo "  docker-build  Build Docker image"
-	@echo "  docker-run    Run Docker container"
-	@echo "  docker-stop   Stop Docker container"
-
+	@echo "  run-mcp       Start MCP server (stdio)"
+	
 # Installation
 install:
 	pip install -e .
@@ -63,22 +61,6 @@ build: clean
 	@echo "Building package..."
 	python -m build
 
-# Docker commands
-docker-build:
-	@echo "Building Docker image..."
-	docker build -t harvard-library-mcp:latest .
-
-docker-run:
-	@echo "Starting Docker container..."
-	docker run -d --name harvard-library-mcp \
-		-p 8000:8000 \
-		-e LOG_LEVEL=INFO \
-		harvard-library-mcp:latest
-
-docker-stop:
-	@echo "Stopping Docker container..."
-	docker stop harvard-library-mcp || true
-	docker rm harvard-library-mcp || true
 
 # Development helpers
 dev-setup: install-dev
@@ -89,9 +71,6 @@ run-mcp:
 	@echo "Starting MCP server..."
 	python -m harvard_library_mcp.server
 
-run-http:
-	@echo "Starting HTTP server..."
-	python -m harvard_library_mcp.http_server
 
 # Database/Cache (for future enhancements)
 redis-up:
