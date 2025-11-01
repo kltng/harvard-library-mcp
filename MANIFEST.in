@@ -1,0 +1,57 @@
+# Include the README file
+include README.md
+
+# Include the license file
+include LICENSE
+
+# Include the changelog
+include CHANGELOG.md
+
+# Include the CLAUDE.md file for development guidance
+include CLAUDE.md
+
+# Include configuration files
+include pyproject.toml
+
+# Include all source files
+recursive-include src/harvard_library_mcp *.py
+
+# Include any static files or templates
+recursive-include src/harvard_library_mcp *.json *.yaml *.yml *.xml *.xsd
+
+# Include test files (for completeness, though they won't be installed)
+recursive-include tests *.py
+
+# Include documentation files
+recursive-include docs *.md *.rst *.txt
+
+# Include any configuration examples
+recursive-include examples *.py *.yaml *.yml *.json *.md
+
+# Include Docker files
+include Dockerfile
+include docker-compose.yml
+include .dockerignore
+
+# Include development configuration files
+include .pre-commit-config.yaml
+include .gitignore
+include .env.example
+
+# Exclude compiled files and cache
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd
+global-exclude __pycache__
+global-exclude .pytest_cache
+global-exclude .mypy_cache
+global-exclude .coverage
+global-exclude htmlcov
+
+# Exclude development and build artifacts
+global-exclude build
+global-exclude dist
+global-exclude *.egg-info
+exclude .tox
+exclude .venv
+exclude venv

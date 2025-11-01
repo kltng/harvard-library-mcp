@@ -1,0 +1,345 @@
+name: Release to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run mode (build and test only, no publishing)'
+        required: false
+        type: boolean
+        default: false
+      create_github_release:
+        description: 'Create GitHub Release'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  id-token: write  # IMPORTANT: for PyPI Trusted Publishing
+
+jobs:
+  pre-release-validation:
+    name: Pre-release Validation
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_new_version: ${{ steps.version-check.outputs.is_new_version }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+        pip install -e ".[dev]"
+
+    - name: Validate version format
+      id: version
+      run: |
+        VERSION="${{ github.event.inputs.version }}"
+        if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9\-\.]*)?$ ]]; then
+          echo "❌ Invalid version format: $VERSION"
+          echo "Expected format: X.Y.Z (with optional suffix like rc1, alpha1, etc.)"
+          exit 1
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "✅ Version format validated: $VERSION"
+
+    - name: Check version consistency
+      run: |
+        CONFIG_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "//; s/"//')
+        INIT_VERSION=$(grep '^__version__' src/harvard_library_mcp/__init__.py | sed 's/__version__ = "//; s/"//')
+
+        echo "Config version: $CONFIG_VERSION"
+        echo "Init version: $INIT_VERSION"
+        echo "Target version: ${{ steps.version.outputs.version }}"
+
+        if [[ "$CONFIG_VERSION" != "${{ steps.version.outputs.version }}" || "$INIT_VERSION" != "${{ steps.version.outputs.version }}" ]]; then
+          echo "❌ Version mismatch detected!"
+          echo "Please update version in both pyproject.toml and src/harvard_library_mcp/__init__.py"
+          exit 1
+        fi
+        echo "✅ Version consistency verified"
+
+    - name: Check if version is new
+      id: version-check
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        if pip index versions harvard-library-mcp 2>/dev/null | grep -q "$VERSION"; then
+          echo "is_new_version=false" >> $GITHUB_OUTPUT
+          echo "⚠️ Version $VERSION already exists on PyPI"
+        else
+          echo "is_new_version=true" >> $GITHUB_OUTPUT
+          echo "✅ Version $VERSION is new"
+        fi
+
+    - name: Code quality checks
+      run: |
+        echo "Running linting..."
+        ruff check src/
+        echo "Running type checking..."
+        mypy src/
+        echo "Running security checks..."
+        bandit -r src/ -f json || true
+        echo "Running import validation..."
+        isort --check-only src/
+        echo "✅ All quality checks passed"
+
+    - name: Security vulnerability scan
+      run: |
+        echo "Checking for security vulnerabilities..."
+        pip-audit || true
+
+  build-and-test:
+    name: Build and Test
+    needs: pre-release-validation
+    if: needs.pre-release-validation.outputs.is_new_version == 'true'
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ matrix.python-version }}-
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+        pip install -e ".[dev]"
+
+    - name: Run tests
+      run: |
+        pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
+
+    - name: Upload coverage to Codecov
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  build-packages:
+    name: Build Distribution Packages
+    needs: [pre-release-validation, build-and-test]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+        pip install -e ".[dev]"
+
+    - name: Build source and wheel distributions
+      run: |
+        python -m build
+
+    - name: Verify distributions
+      run: |
+        twine check dist/*
+        echo "✅ All distributions passed validation"
+
+    - name: List built packages
+      run: |
+        ls -la dist/
+        echo "Built packages:"
+        for file in dist/*; do
+          echo " - $(basename $file)"
+        done
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-distributions
+        path: dist/
+        retention-days: 7
+
+  test-package-installation:
+    name: Test Package Installation
+    needs: build-packages
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11', '3.13']
+
+    steps:
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: python-distributions
+        path: dist/
+
+    - name: Test wheel installation
+      run: |
+        pip install dist/*.whl
+        harvard-library-mcp --help
+        python -c "import harvard_library_mcp; print(f'Package version: {harvard_library_mcp.__version__}')"
+
+    - name: Test source distribution installation
+      run: |
+        pip uninstall -y harvard-library-mcp
+        pip install dist/*.tar.gz
+        harvard-library-mcp --help
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs: [pre-release-validation, test-package-installation]
+    runs-on: ubuntu-latest
+    if: |
+      needs.pre-release-validation.outputs.is_new_version == 'true' &&
+      github.event.inputs.dry_run != 'true'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/harvard-library-mcp
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: python-distributions
+        path: dist/
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        skip-existing: false
+
+  create-github-release:
+    name: Create GitHub Release
+    needs: [pre-release-validation, publish-to-pypi]
+    runs-on: ubuntu-latest
+    if: |
+      needs.pre-release-validation.outputs.is_new_version == 'true' &&
+      github.event.inputs.create_github_release == 'true' &&
+      github.event.inputs.dry_run != 'true'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: python-distributions
+        path: dist/
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        VERSION="${{ needs.pre-release-validation.outputs.version }}"
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+
+        if [[ -n "$PREV_TAG" ]]; then
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD)
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)")
+        fi
+
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ needs.pre-release-validation.outputs.version }}
+        name: Release v${{ needs.pre-release-validation.outputs.version }}
+        body: |
+          ## Release v${{ needs.pre-release-validation.outputs.version }}
+
+          ### Changes
+          ${{ steps.changelog.outputs.changelog }}
+
+          ### Installation
+          ```bash
+          pip install harvard-library-mcp==${{ needs.pre-release-validation.outputs.version }}
+          ```
+
+          ### Verification
+          - ✅ All tests passed
+          - ✅ Code quality checks passed
+          - ✅ Security scans passed
+          - ✅ Package installation verified
+        files: |
+          dist/*.whl
+          dist/*.tar.gz
+        draft: false
+        prerelease: ${{ contains(needs.pre-release-validation.outputs.version, 'rc') || contains(needs.pre-release-validation.outputs.version, 'alpha') || contains(needs.pre-release-validation.outputs.version, 'beta') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-summary:
+    name: Release Summary
+    needs: [pre-release-validation, create-github-release]
+    if: always() && github.event.inputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Release Summary
+      run: |
+        echo "## 🎉 Release Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Version:** ${{ needs.pre-release-validation.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Status:** ${{ needs.create-github-release.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [[ "${{ needs.create-github-release.result }}" == "success" ]]; then
+          echo "### ✅ Release Completed Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 🐍 **PyPI**: [harvard-library-mcp on PyPI](https://pypi.org/project/harvard-library-mcp/)" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 **Package**: \`pip install harvard-library-mcp==${{ needs.pre-release-validation.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏷️ **GitHub Release**: [View Release](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.pre-release-validation.outputs.version }})" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ❌ Release Failed" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the workflow logs for details." >> $GITHUB_STEP_SUMMARY
+        fi

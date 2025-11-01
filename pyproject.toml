@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "wheel", "setuptools>=61.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -42,11 +42,19 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=5.0.0",
+    "pytest-benchmark>=4.0.0",
     "black>=24.0.0",
     "isort>=5.13.0",
     "mypy>=1.10.0",
     "ruff>=0.5.0",
     "pre-commit>=3.7.0",
+    "bandit>=1.7.5",
+    "pip-audit>=2.6.1",
+    "build>=0.10.0",
+    "twine>=4.0.0",
+    "check-wheel-contents>=0.4.0",
+    "types-requests",
+    "types-xmltodict",
 ]
 
 test = [
@@ -61,9 +69,11 @@ harvard-library-mcp = "harvard_library_mcp.server:cli_main"
 harvard-library-mcp-http = "harvard_library_mcp.http_server:main"
 
 [project.urls]
-Homepage = "https://github.com/your-org/harvard-library-mcp"
-Repository = "https://github.com/your-org/harvard-library-mcp.git"
-Issues = "https://github.com/your-org/harvard-library-mcp/issues"
+Homepage = "https://github.com/kltang/harvard-library-mcp"
+Repository = "https://github.com/kltang/harvard-library-mcp.git"
+Issues = "https://github.com/kltang/harvard-library-mcp/issues"
+Documentation = "https://github.com/kltang/harvard-library-mcp/blob/main/README.md"
+Changelog = "https://github.com/kltang/harvard-library-mcp/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/harvard_library_mcp"]
@@ -123,6 +133,7 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "performance: marks tests as performance tests",
 ]
 
 [tool.coverage.run]
