@@ -1,0 +1,1 @@
+"""Tests for Harvard Library MCP server."""

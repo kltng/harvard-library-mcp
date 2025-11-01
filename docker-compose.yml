@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  harvard-library-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: harvard-library-mcp
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - HARVARD_API_BASE_URL=${HARVARD_API_BASE_URL:-https://api.lib.harvard.edu/v2}
+      - RATE_LIMIT_REQUESTS_PER_SECOND=${RATE_LIMIT_REQUESTS_PER_SECOND:-10}
+      - ENABLE_CACHE=${ENABLE_CACHE:-true}
+      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-300}
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add Redis for caching (future enhancement)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: harvard-mcp-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   restart: unless-stopped
+
+  # Optional: Add monitoring (future enhancement)
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: harvard-mcp-prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+  #   restart: unless-stopped
+
+# volumes:
+#   redis_data:
+
+networks:
+  default:
+    name: harvard-mcp-network
