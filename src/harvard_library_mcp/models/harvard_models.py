@@ -183,6 +183,29 @@ class ModsMetadata(BaseModel):
             # Return minimal metadata if parsing fails
             return cls(raw_xml=xml_content)
 
+    @classmethod
+    def from_mods_dict(cls, mods_data: Dict[str, Any]) -> "ModsMetadata":
+        """Create ModsMetadata from a dictionary representation of MODS data."""
+        try:
+            return cls(
+                title_info=mods_data.get("titleInfo"),
+                name_info=mods_data.get("name") if isinstance(mods_data.get("name"), list) else [mods_data.get("name")] if mods_data.get("name") else None,
+                origin_info=mods_data.get("originInfo"),
+                language=mods_data.get("language"),
+                physical_description=mods_data.get("physicalDescription"),
+                subjects=mods_data.get("subject") if isinstance(mods_data.get("subject"), list) else [mods_data.get("subject")] if mods_data.get("subject") else None,
+                classification=mods_data.get("classification") if isinstance(mods_data.get("classification"), list) else [mods_data.get("classification")] if mods_data.get("classification") else None,
+                related_items=mods_data.get("relatedItem") if isinstance(mods_data.get("relatedItem"), list) else [mods_data.get("relatedItem")] if mods_data.get("relatedItem") else None,
+                identifiers=mods_data.get("identifier") if isinstance(mods_data.get("identifier"), list) else [mods_data.get("identifier")] if mods_data.get("identifier") else None,
+                locations=mods_data.get("location"),
+                record_info=mods_data.get("recordInfo"),
+                extensions=mods_data.get("extension"),
+                raw_xml=str(mods_data)  # Store string representation
+            )
+        except Exception as e:
+            # Return minimal metadata if parsing fails
+            return cls(raw_xml=str(mods_data))
+
 
 class HarvardRecord(BaseModel):
     """A single Harvard Library catalog record."""

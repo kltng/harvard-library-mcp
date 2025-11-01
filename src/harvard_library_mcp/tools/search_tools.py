@@ -100,6 +100,7 @@ async def search_by_title(
     try:
         client = await get_client()
         result = await client.search(
+            query=title,  # Use title as the query parameter
             title=title,
             limit=limit,
             offset=offset,
@@ -146,6 +147,7 @@ async def search_by_author(
     try:
         client = await get_client()
         result = await client.search(
+            query=author,  # Use author as the query parameter
             author=author,
             limit=limit,
             offset=offset,
@@ -192,6 +194,7 @@ async def search_by_subject(
     try:
         client = await get_client()
         result = await client.search(
+            query=subject,  # Use subject as the query parameter
             subject=subject,
             limit=limit,
             offset=offset,
@@ -238,6 +241,7 @@ async def search_by_collection(
     try:
         client = await get_client()
         result = await client.search(
+            query=collection,  # Use collection as the query parameter
             collection=collection,
             limit=limit,
             offset=offset,
@@ -341,8 +345,10 @@ async def search_by_geographic_origin(
     """
     try:
         client = await get_client()
+        # Use origin_place as query if no separate query provided
+        search_query = query or origin_place
         result = await client.search(
-            query=query,
+            query=search_query,
             origin_place=origin_place,
             limit=limit,
             offset=offset,
@@ -414,8 +420,10 @@ async def advanced_search(
     """
     try:
         client = await get_client()
+        # Ensure we have a query parameter - use first available field as query
+        search_query = query or title or author or subject or collection or ""
         result = await client.search(
-            query=query,
+            query=search_query,
             title=title,
             author=author,
             subject=subject,

@@ -8,6 +8,7 @@ from typing import Any, Sequence
 import mcp.server.stdio
 import mcp.types as types
 from mcp.server import Server
+from mcp.server.models import InitializationOptions
 
 from . import __version__
 from .config import settings
@@ -461,61 +462,7 @@ async def handle_call_tool(name: str, arguments: dict[str, Any] | None) -> list[
         return [types.TextContent(type="text", text=str({"success": False, "error": error_msg}))]
 
 
-@server.list_resources()
-async def handle_list_resources() -> list[types.Resource]:
-    """List available resources."""
-    return [
-        types.Resource(
-            uri="harvard://collections",
-            name="Harvard Library Collections",
-            description="Information about available Harvard Library collections",
-            mimeType="application/json"
-        ),
-        types.Resource(
-            uri="harvard://api-info",
-            name="Harvard Library API Information",
-            description="Information about the Harvard Library API capabilities and usage",
-            mimeType="application/json"
-        ),
-    ]
-
-
-@server.read_resource()
-async def handle_read_resource(uri: str) -> str:
-    """Read a resource."""
-    try:
-        if uri == "harvard://collections":
-            collections_result = await get_collections_list()
-            return str(collections_result)
-        elif uri == "harvard://api-info":
-            api_info = {
-                "name": "Harvard Library MCP Server",
-                "version": __version__,
-                "description": "MCP server for Harvard University Library catalog API",
-                "api_base_url": settings.harvard_api_base_url,
-                "capabilities": [
-                    "Catalog search",
-                    "Field-specific search (title, author, subject)",
-                    "Collection-specific search",
-                    "Date range filtering",
-                    "Geographic filtering",
-                    "MODS metadata parsing",
-                    "Advanced multi-field search"
-                ],
-                "data_formats": ["JSON", "MODS XML"],
-                "authentication": "Public access (no authentication required)",
-                "rate_limiting": {
-                    "requests_per_second": settings.rate_limit_requests_per_second,
-                    "burst_size": settings.rate_limit_burst_size
-                }
-            }
-            return str(api_info)
-        else:
-            raise ValueError(f"Unknown resource: {uri}")
-
-    except Exception as e:
-        logger.error(f"Error reading resource {uri}: {e}")
-        return str({"error": str(e)})
+# Resources removed - all functionality available through tools
 
 
 async def main():
@@ -525,6 +472,15 @@ async def main():
     logger.info(f"API Base URL: {settings.harvard_api_base_url}")
     logger.info(f"Rate Limit: {settings.rate_limit_requests_per_second} req/s")
 
+    # Create proper capabilities object
+    from mcp.server.models import ServerCapabilities
+    capabilities = ServerCapabilities(
+        tools={},
+        resources={},
+        prompts=None,
+        logging=None
+    )
+
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,
@@ -532,10 +488,7 @@ async def main():
             InitializationOptions(
                 server_name="harvard-library-mcp",
                 server_version=__version__,
-                capabilities=server.get_capabilities(
-                    notification_options=None,
-                    experimental_capabilities=None,
-                ),
+                capabilities=capabilities,
             ),
         )
 

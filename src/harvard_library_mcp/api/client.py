@@ -103,13 +103,18 @@ class HarvardLibraryClient:
 
     def _build_url(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> str:
         """Build complete URL with query parameters."""
-        url = urljoin(self.base_url, endpoint)
+        # Ensure base URL ends with slash for proper urljoin behavior
+        base_url = self.base_url if self.base_url.endswith('/') else f"{self.base_url}/"
+        # Remove leading slash from endpoint if present
+        clean_endpoint = endpoint.lstrip('/')
+        url = urljoin(base_url, clean_endpoint)
         if params:
             # Filter out None values and encode parameters
             filtered_params = {k: v for k, v in params.items() if v is not None}
             if filtered_params:
                 query_string = urlencode(filtered_params)
                 url = f"{url}?{query_string}"
+        logger.debug(f"Built URL: {url}")
         return url
 
     async def _make_request(
@@ -142,7 +147,7 @@ class HarvardLibraryClient:
             request_headers.update(headers)
 
         try:
-            logger.debug(f"Making {method} request to {url}")
+            logger.info(f"Making {method} request to {url}")
             response = await self.client.request(
                 method=method,
                 url=url,
@@ -167,6 +172,9 @@ class HarvardLibraryClient:
             import xmltodict
             content = response.text
             return xmltodict.parse(content)
+        except ImportError:
+            logger.warning("xmltodict not available, returning raw XML")
+            return {"raw_xml": response.text}
         except Exception as e:
             logger.error(f"Error parsing XML response: {e}")
             # Return minimal structure if parsing fails
@@ -191,39 +199,87 @@ class HarvardLibraryClient:
         total_count = 0
 
         try:
-            if format_type == "json":
-                # Handle JSON response format
-                if "items" in response_data:
-                    items = response_data["items"]
-                    if isinstance(items, dict) and "item" in items:
-                        records = items["item"] if isinstance(items["item"], list) else [items["item"]]
-                    elif isinstance(items, list):
-                        records = items
+            # Handle Harvard Library API response format
+            if "items" in response_data:
+                items_data = response_data["items"]
 
                 # Extract pagination info
                 pagination = response_data.get("pagination", {})
                 if "numFound" in pagination:
                     total_count = int(pagination["numFound"])
-                elif "total" in pagination:
-                    total_count = int(pagination["total"])
 
-            elif format_type == "xml":
-                # Handle XML response format
-                if "items" in response_data:
-                    items_data = response_data["items"]
-                    if "item" in items_data:
-                        records = items_data["item"]
-                        if not isinstance(records, list):
-                            records = [records]
+                # Harvard API returns MODS data under items.mods
+                if isinstance(items_data, dict) and "mods" in items_data:
+                    # Single record response
+                    records = [{"mods": items_data["mods"]}]
+                elif isinstance(items_data, dict):
+                    # Multiple records might be structured differently
+                    # Look for common patterns in Harvard API responses
+                    for key in items_data:
+                        if key.startswith("mods") or (isinstance(items_data[key], dict) and "mods" in items_data[key]):
+                            if isinstance(items_data[key], dict) and "mods" in items_data[key]:
+                                records.append({"mods": items_data[key]["mods"]})
+                            elif isinstance(items_data[key], list):
+                                for item in items_data[key]:
+                                    if isinstance(item, dict) and "mods" in item:
+                                        records.append({"mods": item["mods"]})
+                                    else:
+                                        records.append({"mods": item})
+                elif isinstance(items_data, list):
+                    # List of records
+                    for item in items_data:
+                        if isinstance(item, dict):
+                            if "mods" in item:
+                                records.append({"mods": item["mods"]})
+                            else:
+                                records.append({"mods": item})
+                        else:
+                            records.append({"mods": item})
 
-                # Look for pagination info in various possible locations
-                for key in ["numFound", "total", "totalResults"]:
-                    if key in response_data.get("pagination", {}):
-                        total_count = int(response_data["pagination"][key])
-                        break
-                    elif key in response_data:
-                        total_count = int(response_data[key])
-                        break
+                # If no records found yet, try alternative parsing
+                if not records:
+                    # Sometimes the API returns different structures
+                    if "mods" in response_data:
+                        if isinstance(response_data["mods"], list):
+                            records = [{"mods": mods_item} for mods_item in response_data["mods"]]
+                        else:
+                            records = [{"mods": response_data["mods"]}]
+
+            # Fallback to generic parsing if Harvard-specific parsing didn't work
+            if not records:
+                if format_type == "json":
+                    # Handle generic JSON response format
+                    if "items" in response_data:
+                        items = response_data["items"]
+                        if isinstance(items, dict) and "item" in items:
+                            records = items["item"] if isinstance(items["item"], list) else [items["item"]]
+                        elif isinstance(items, list):
+                            records = items
+
+                    # Extract pagination info
+                    pagination = response_data.get("pagination", {})
+                    if "numFound" in pagination:
+                        total_count = int(pagination["numFound"])
+                    elif "total" in pagination:
+                        total_count = int(pagination["total"])
+
+                elif format_type == "xml":
+                    # Handle XML response format
+                    if "items" in response_data:
+                        items_data = response_data["items"]
+                        if "item" in items_data:
+                            records = items_data["item"]
+                            if not isinstance(records, list):
+                                records = [records]
+
+                    # Look for pagination info in various possible locations
+                    for key in ["numFound", "total", "totalResults"]:
+                        if key in response_data.get("pagination", {}):
+                            total_count = int(response_data["pagination"][key])
+                            break
+                        elif key in response_data:
+                            total_count = int(response_data[key])
+                            break
 
         except Exception as e:
             logger.error(f"Error extracting records from response: {e}")
@@ -285,7 +341,7 @@ class HarvardLibraryClient:
         if title:
             params["title"] = title
         if author:
-            params["author"] = author
+            params["name"] = author  # Harvard API uses 'name' for author
         if subject:
             params["subject"] = subject
         if collection:
@@ -299,13 +355,14 @@ class HarvardLibraryClient:
         if format_type:
             params["resourceType"] = format_type
 
-        # Date range handling
+        # Date range handling - Harvard API doesn't support dateRange, use dateIssued
         if start_date and end_date:
-            params["dateRange"] = f"{start_date}-{end_date}"
+            # Harvard API doesn't support date ranges, use start date
+            params["dateIssued"] = start_date
         elif start_date:
-            params["date"] = start_date
+            params["dateIssued"] = start_date
         elif end_date:
-            params["date"] = end_date
+            params["dateIssued"] = end_date
 
         # Sorting
         if sort_by:
@@ -412,56 +469,154 @@ class HarvardLibraryClient:
     ) -> HarvardRecord:
         """Parse Harvard record data into HarvardRecord object."""
         try:
-            # Extract basic fields
+            # Handle Harvard API MODS format
+            mods_data = None
+            if "mods" in record_data:
+                mods_data = record_data["mods"]
+            elif isinstance(record_data, dict) and any(key in record_data for key in ["titleInfo", "name", "originInfo"]):
+                # Record data is already MODS format
+                mods_data = record_data
+
+            if mods_data:
+                # Extract from MODS data - Harvard API stores ID in different locations
+                record_id = self._extract_text_content(
+                    self._extract_from_mods(mods_data, ["recordInfo", "recordIdentifier"], "")
+                )
+                if not record_id:
+                    # Try other possible ID locations
+                    record_id = self._extract_text_content(
+                        self._extract_from_mods(mods_data, ["identifier", "0"], "")
+                    )
+                if not record_id:
+                    # Use a generated ID if none found
+                    record_id = f"harvard-{hash(str(mods_data)) % 1000000}"
+
+                # Extract title
+                title_info = self._extract_from_mods(mods_data, ["titleInfo"], {})
+                if isinstance(title_info, dict):
+                    title = self._extract_text_content(self._extract_from_mods(title_info, ["title"], ""))
+                elif isinstance(title_info, list) and title_info:
+                    title = self._extract_text_content(self._extract_from_mods(title_info[0], ["title"], ""))
+                else:
+                    title = ""
+
+                # Extract authors
+                authors = []
+                name_info = self._extract_from_mods(mods_data, ["name"], [])
+                if isinstance(name_info, dict):
+                    name_info = [name_info]
+                elif name_info and not isinstance(name_info, list):
+                    name_info = [{"namePart": str(name_info)}]
+
+                for name_item in name_info:
+                    if isinstance(name_item, dict):
+                        name_parts = self._extract_from_mods(name_item, ["namePart"], [])
+                        if isinstance(name_parts, list):
+                            authors.extend(self._extract_text_content(part) for part in name_parts if part)
+                        elif name_parts:
+                            authors.append(self._extract_text_content(name_parts))
+
+                # Extract publication date
+                origin_info = self._extract_from_mods(mods_data, ["originInfo"], {})
+                if isinstance(origin_info, dict):
+                    pub_date = self._extract_text_content(self._extract_from_mods(origin_info, ["dateIssued"], ""))
+                elif isinstance(origin_info, list) and origin_info:
+                    pub_date = self._extract_text_content(self._extract_from_mods(origin_info[0], ["dateIssued"], ""))
+                else:
+                    pub_date = ""
+
+                # Extract publisher
+                if isinstance(origin_info, dict):
+                    publisher = self._extract_text_content(self._extract_from_mods(origin_info, ["publisher"], ""))
+                elif isinstance(origin_info, list) and origin_info:
+                    publisher = self._extract_text_content(self._extract_from_mods(origin_info[0], ["publisher"], ""))
+                else:
+                    publisher = ""
+
+                # Extract language
+                language_data = self._extract_from_mods(mods_data, ["language"], {})
+                if isinstance(language_data, dict):
+                    language = self._extract_text_content(self._extract_from_mods(language_data, ["languageTerm"], ""))
+                elif isinstance(language_data, list) and language_data:
+                    language = self._extract_text_content(self._extract_from_mods(language_data[0], ["languageTerm"], ""))
+                else:
+                    language = ""
+
+                # Extract subjects
+                subjects = []
+                subject_data = self._extract_from_mods(mods_data, ["subject"], [])
+                if isinstance(subject_data, dict):
+                    subject_data = [subject_data]
+
+                for subject_item in subject_data:
+                    if isinstance(subject_item, dict):
+                        topic = self._extract_from_mods(subject_item, ["topic"], [])
+                        if isinstance(topic, list):
+                            subjects.extend(self._extract_text_content(t) for t in topic if t)
+                        elif topic:
+                            subjects.append(self._extract_text_content(topic))
+
+                # Extract description
+                description_data = self._extract_from_mods(mods_data, ["abstract", "note"], "")
+                description = self._extract_text_content(description_data)
+
+                # Extract identifiers
+                identifiers = {}
+                identifier_data = self._extract_from_mods(mods_data, ["identifier"], [])
+                if isinstance(identifier_data, dict):
+                    identifier_data = [identifier_data]
+
+                for id_item in identifier_data:
+                    if isinstance(id_item, dict):
+                        id_type = id_item.get("@type", "").upper()
+                        id_value = self._extract_text_content(id_item)
+                        if id_value:
+                            identifiers[id_type] = id_value
+
+                # Extract format
+                format_field = self._extract_from_mods(mods_data, ["physicalDescription", "form"], "")
+                format_field = self._extract_text_content(format_field)
+
+                # Parse MODS metadata
+                mods_metadata = ModsMetadata.from_mods_dict(mods_data) if mods_data else None
+
+                return HarvardRecord(
+                    id=record_id,
+                    title=title,
+                    authors=authors if authors else None,
+                    publication_date=pub_date or None,
+                    publisher=publisher or None,
+                    language=language or None,
+                    format_type=format_field or None,
+                    subjects=subjects if subjects else None,
+                    description=description or None,
+                    identifiers=identifiers if identifiers else {},  # Ensure identifiers is always a dict
+                    mods_metadata=mods_metadata,
+                    raw_data=record_data,
+                )
+
+            # Fallback to original parsing for non-MODS data
             record_id = (
                 record_data.get("id") or
                 record_data.get("@id") or
                 record_data.get("recordId", "")
             )
 
-            # Extract title
             title = self._extract_title(record_data, format_type)
-
-            # Extract authors
             authors = self._extract_authors(record_data, format_type)
-
-            # Extract publication date
             pub_date = self._extract_publication_date(record_data, format_type)
-
-            # Extract publisher
             publisher = self._extract_publisher(record_data, format_type)
-
-            # Extract language
             language = self._extract_language(record_data, format_type)
-
-            # Extract format type
             format_type_field = self._extract_format_type(record_data, format_type)
-
-            # Extract subjects
             subjects = self._extract_subjects(record_data, format_type)
-
-            # Extract description
             description = self._extract_description(record_data, format_type)
-
-            # Extract identifiers
             identifiers = self._extract_identifiers(record_data, format_type)
-
-            # Extract holdings
             holdings = self._extract_holdings(record_data, format_type)
-
-            # Extract classification
             classification = self._extract_classification(record_data, format_type)
-
-            # Extract collections
             collections = self._extract_collections(record_data, format_type)
-
-            # Extract stackscore
             stackscore = self._extract_stackscore(record_data, format_type)
-
-            # Extract digital content availability
             digital_content = self._extract_digital_content(record_data, format_type)
 
-            # Parse MODS metadata if available
             mods_metadata = None
             if format_type == "xml" and "mods" in record_data:
                 mods_metadata = ModsMetadata.from_xml(str(record_data["mods"]))
@@ -476,7 +631,7 @@ class HarvardLibraryClient:
                 format_type=format_type_field,
                 subjects=subjects,
                 description=description,
-                identifiers=identifiers,
+                identifiers=identifiers if identifiers else {},  # Ensure identifiers is always a dict
                 holdings=holdings,
                 classification=classification,
                 collections=collections,
@@ -493,6 +648,43 @@ class HarvardLibraryClient:
                 id=str(record_data.get("id", "unknown")),
                 raw_data=record_data,
             )
+
+    def _extract_from_mods(self, data: Dict[str, Any], keys: list, default=None):
+        """Extract value from nested MODS data using list of keys."""
+        for key in keys:
+            if isinstance(data, dict) and key in data:
+                value = data[key]
+                if isinstance(value, dict):
+                    # Handle complex MODS structures
+                    if "#text" in value:
+                        return value["#text"]
+                    elif value:
+                        return value
+                elif isinstance(value, list) and value:
+                    # Return first item if list
+                    first_item = value[0]
+                    if isinstance(first_item, dict) and "#text" in first_item:
+                        return first_item["#text"]
+                    return first_item
+                else:
+                    return value
+        return default
+
+    def _extract_text_content(self, data: Any) -> str:
+        """Extract text content from MODS data, handling various formats."""
+        if isinstance(data, str):
+            return data
+        elif isinstance(data, dict):
+            if "#text" in data:
+                return data["#text"]
+            elif "text" in data:
+                return data["text"]
+            elif data:
+                # Convert dict to string representation
+                return str(data)
+        elif isinstance(data, list) and data:
+            return self._extract_text_content(data[0])
+        return ""
 
     def _extract_title(self, data: Dict[str, Any], format_type: str) -> Optional[str]:
         """Extract title from record data."""

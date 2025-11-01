@@ -57,7 +57,7 @@ test = [
 ]
 
 [project.scripts]
-harvard-library-mcp = "harvard_library_mcp.server:main"
+harvard-library-mcp = "harvard_library_mcp.server:cli_main"
 harvard-library-mcp-http = "harvard_library_mcp.http_server:main"
 
 [project.urls]
