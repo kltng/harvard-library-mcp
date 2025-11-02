@@ -72,9 +72,9 @@ CMD ["python", "-m", "harvard_library_mcp.http_server"]
 
 # Labels
 LABEL maintainer="Harvard Library MCP Team" \
-      version="0.1.0" \
+      version="0.1.1" \
       description="Harvard Library MCP Server" \
       org.opencontainers.image.title="Harvard Library MCP Server" \
       org.opencontainers.image.description="MCP server for Harvard University Library catalog API" \
-      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.version="0.1.1" \
       org.opencontainers.image.vendor="Harvard Library"
