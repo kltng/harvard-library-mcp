@@ -1,22 +1,168 @@
 # Harvard Library MCP Server
 
-A Model Context Protocol (MCP) server for the Harvard University Library catalog API, providing stdio interface for comprehensive bibliographic search and metadata retrieval.
+A Model Context Protocol (MCP) server for the Harvard University Library catalog API, providing comprehensive bibliographic search and metadata retrieval capabilities for AI assistants.
 
-## Features
+[![PyPI version](https://badge.fury.io/py/harvard-library-mcp.svg)](https://badge.fury.io/py/harvard-library-mcp)
+[![Python versions](https://img.shields.io/pypi/pyversions/harvard-library-mcp.svg)](https://pypi.org/project/harvard-library-mcp/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-- **Comprehensive Search**: Basic keyword search, advanced fielded search, collection-specific search
-- **Rich Metadata**: Native MODS XML format support with structured JSON conversion
-- **Stdio Interface**: MCP stdio transport for AI assistant integration
-- **Python Implementation**: Robust async HTTP client with proper error handling
-- **Rate Limited**: Respectful API usage with built-in rate limiting
+## ✨ Features
 
-## Quick Start
+- **🔍 Comprehensive Search**: Free-text search, advanced fielded search, collection-specific queries
+- **📚 Rich Metadata**: Native MODS XML format with structured JSON conversion
+- **🔌 Universal Integration**: stdio MCP transport for Claude Desktop, Cherry Studio, and other AI assistants
+- **⚡ High Performance**: Async HTTP client with built-in rate limiting and error handling
+- **🌐 Access to 20M+ Records**: Search Harvard's entire academic library collection
+- **📖 Complete Metadata**: Access to bibliographic records, subject headings, and collection information
 
-### Local Development
+## 🚀 Quick Start
+
+### Installation from PyPI
 
 ```bash
-# Clone and install
-git clone <repository-url>
+pip install harvard-library-mcp
+```
+
+### Usage with AI Assistants
+
+#### Cherry Studio Integration
+
+Cherry Studio provides native MCP server support for seamless integration with the Harvard Library catalog.
+
+**Prerequisites:**
+- Cherry Studio installed on your system
+- `harvard-library-mcp` package installed via `pip install harvard-library-mcp`
+
+**Step 1: Install MCP Environment**
+1. Open Cherry Studio → Settings → MCP Server
+2. Click "Install" to automatically install required dependencies
+3. If installation fails, manually install to the Cherry Studio directory:
+   - **Windows**: `C:\Users\{username}\.cherrystudio\bin`
+   - **macOS/Linux**: `~/.cherrystudio/bin`
+
+**Step 2: Configure Harvard Library MCP Server**
+Cherry Studio may use the standard MCP configuration format. Add the following to your Cherry Studio MCP settings:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "harvard-library": {
+        "command": "uvx",
+        "args": ["harvard-library-mcp"],
+        "env": {}
+      }
+    }
+  }
+}
+```
+
+**Alternative Cherry Studio Format**
+If Cherry Studio uses its own format, use this configuration:
+
+```json
+{
+  "name": "Harvard Library",
+  "command": "uvx",
+  "args": ["harvard-library-mcp"],
+  "description": "Search Harvard University Library catalog - 20M+ academic records",
+  "tools": [
+    "search_catalog",
+    "search_by_title",
+    "search_by_author",
+    "search_by_subject",
+    "advanced_search",
+    "search_by_collection",
+    "search_by_date_range",
+    "search_by_geographic_origin",
+    "get_record_details",
+    "get_collections_list",
+    "parse_mods_metadata"
+  ],
+  "icon": "📚",
+  "category": "Research",
+  "version": "0.1.0"
+}
+```
+
+**Step 3: Start Using**
+1. Restart Cherry Studio
+2. The Harvard Library tools will be available in your chat interface
+3. Try queries like:
+   - "Search for books about machine learning"
+   - "Find works by Shakespeare in Harvard's collection"
+   - "Show me records from the Harvard Fine Arts Library"
+
+#### Claude Desktop Integration
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "harvard-library": {
+        "command": "uvx",
+        "args": ["harvard-library-mcp"]
+      }
+    }
+  }
+}
+```
+
+**Configuration File Location:**
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+#### Standard MCP Configuration
+
+For any MCP-compatible client, use this JSON configuration format:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "harvard-library": {
+        "command": "uvx",
+        "args": ["harvard-library-mcp"],
+        "env": {}
+      }
+    }
+  }
+}
+```
+
+**Configuration Options:**
+- `command`: The command to run (`uvx` for running from PyPI packages)
+- `args`: Package name and additional arguments (`["harvard-library-mcp"]`)
+- `env`: Environment variables for the server process (optional)
+
+**Example with custom settings:**
+```json
+{
+  "mcp": {
+    "servers": {
+      "harvard-library": {
+        "command": "uvx",
+        "args": ["harvard-library-mcp"],
+        "env": {
+          "LOG_LEVEL": "DEBUG",
+          "RATE_LIMIT_REQUESTS_PER_SECOND": "5"
+        }
+      }
+    }
+  }
+}
+```
+
+**Note:** Using `uvx harvard-library-mcp` is the recommended approach as it automatically handles virtual environments and dependencies from PyPI.
+
+#### Local Development
+
+```bash
+# Clone and install in development mode
+git clone https://github.com/your-username/harvard-library-mcp.git
 cd harvard-library-mcp
 pip install -e .
 
@@ -24,48 +170,176 @@ pip install -e .
 python -m harvard_library_mcp.server
 ```
 
-## MCP Tools
+## 🛠️ Available MCP Tools
 
-The MCP server provides the following tools:
+### 🔍 Search Tools
+- **`search_catalog(query)`** - Free-text search across entire Harvard Library catalog
+- **`search_by_title(title)`** - Search specifically by title field
+- **`search_by_author(author)`** - Search by author/creator names
+- **`search_by_subject(subject)`** - Search by subject headings and keywords
+- **`advanced_search(filters)`** - Multi-field search with specific filters (title, author, subject, date, etc.)
+- **`search_by_collection(collection_id)`** - Search within specific Harvard Library collections
+- **`search_by_date_range(start_date, end_date)`** - Search by publication date range
+- **`search_by_geographic_origin(location)`** - Search by publication location
 
-### Search Tools
-- `search_catalog` - Free-text search across catalog
-- `search_by_title` - Search by title
-- `search_by_author` - Search by author
-- `search_by_subject` - Search by subject/keywords
-- `advanced_search` - Multi-field search with filters
-- `search_by_collection` - Search within specific collections
-- `search_by_date_range` - Search by publication date range
-- `search_by_geographic_origin` - Search by publication location
+### 📊 Utility Tools
+- **`get_record_details(record_id)`** - Fetch complete bibliographic record by Harvard ID
+- **`get_collections_list()`** - List all available collections with metadata
+- **`parse_mods_metadata(mods_xml)`** - Convert MODS XML to structured JSON
 
-### Utility Tools
-- `get_record_details` - Fetch complete record by ID
-- `get_collections_list` - List available collections
-- `parse_mods_metadata` - Extract structured data from MODS
+## 📝 Usage Examples
 
-## Configuration
+### Basic Search
+```
+Search for books about artificial intelligence published after 2020
+```
 
-Environment variables:
-- `HARVARD_API_BASE_URL`: Base URL for Harvard Library API (default: https://api.lib.harvard.edu/v2)
-- `RATE_LIMIT_REQUESTS_PER_SECOND`: API rate limit (default: 10)
-- `LOG_LEVEL`: Logging level (default: INFO)
+### Academic Research
+```
+Find works by Noam Chomsky in the linguistics collection
+Show me details for Harvard record ID: 12345678
+```
 
-## Development
+### Collection Discovery
+```
+List all Harvard Library collections
+Search within the Fine Arts Library collection for Renaissance art
+```
+
+## ⚙️ Configuration
+
+### Environment Variables
+- `HARVARD_API_BASE_URL`: Base URL for Harvard Library API (default: `https://api.lib.harvard.edu/v2`)
+- `RATE_LIMIT_REQUESTS_PER_SECOND`: API rate limit (default: `10`)
+- `LOG_LEVEL`: Logging level (default: `INFO`)
+
+### Advanced Configuration
+For custom deployments, you can configure additional settings:
+
+```bash
+# Custom rate limiting
+export RATE_LIMIT_REQUESTS_PER_SECOND=5
+
+# Debug logging
+export LOG_LEVEL=DEBUG
+
+# Custom API endpoint (for development/testing)
+export HARVARD_API_BASE_URL=https://api.lib.harvard.edu/v2
+```
+
+## 🏗️ Architecture
+
+### Core Components
+- **Server (`server.py`)**: MCP stdio interface implementation
+- **API Client (`api/client.py`)**: Async HTTP client for Harvard Library API
+- **Tools (`tools/search_tools.py`)**: MCP tool implementations
+- **Models (`models/harvard_models.py`)**: Pydantic models for data validation
+- **Configuration (`config.py`)**: Environment-based configuration management
+
+### Data Flow
+```
+AI Assistant → MCP Server → Harvard Library API → Bibliographic Records
+```
+
+The server handles:
+- ✅ Rate limiting (10 req/sec default)
+- ✅ Error handling and retries
+- ✅ MODS XML parsing and JSON conversion
+- ✅ Response validation and typing
+
+## 👨‍💻 Development
+
+### Prerequisites
+- Python 3.11 or higher
+- Git
+
+### Setup Development Environment
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/harvard-library-mcp.git
+cd harvard-library-mcp
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install in development mode with dependencies
+pip install -e ".[dev]"
+
+# Set up pre-commit hooks (optional)
+pre-commit install
+```
 
 ### Running Tests
 
 ```bash
-pytest tests/
+# Run all tests
+make test
+pytest tests/ -v
+
+# Run tests with coverage
+make test-coverage
+pytest tests/ --cov=src --cov-report=html
+
+# Run specific test categories
+pytest tests/ -m unit        # Unit tests only
+pytest tests/ -m integration # Integration tests only
 ```
 
-### Code Formatting
+### Code Quality
 
 ```bash
+# Run all linting checks
+make lint
+mypy src/
+ruff check src/
+black --check src/
+isort --check-only src/
+
+# Format code automatically
+make format
 black src/
 isort src/
+ruff check --fix src/
 ```
 
-## Release Process
+## 🐳 Docker Support
+
+### Build and Run
+
+```bash
+# Build Docker image
+docker build -t harvard-library-mcp:latest .
+
+# Run container
+docker run -d --name harvard-library-mcp harvard-library-mcp:latest
+
+# Using Docker Compose
+docker-compose up -d
+docker-compose logs -f
+```
+
+## 📦 Installation Options
+
+### From PyPI (Recommended)
+```bash
+pip install harvard-library-mcp
+```
+
+### From Source
+```bash
+git clone https://github.com/your-username/harvard-library-mcp.git
+cd harvard-library-mcp
+pip install -e .
+```
+
+### Development Version
+```bash
+pip install git+https://github.com/your-username/harvard-library-mcp.git
+```
+
+## 🔄 Release Process
 
 This project uses automated releases with GitHub Actions and PyPI Trusted Publishing.
 
@@ -83,107 +357,57 @@ pip install harvard-library-mcp==0.1.0
 
 ### For Maintainers
 
-#### Prerequisites
-1. PyPI Trusted Publishing must be configured (see `scripts/setup-pypi-trusted-publishing.md`)
-2. You must be a project owner on PyPI
-3. Repository permissions must allow workflow dispatch
-
-#### Release Steps
-
-1. **Update Version Numbers**
-   ```bash
-   # Update version in both files consistently
-   # pyproject.toml
-   # src/harvard_library_mcp/__init__.py
-   ```
-
-2. **Update Changelog**
-   ```bash
-   # Add release notes to CHANGELOG.md
-   # Include new features, bug fixes, and breaking changes
-   ```
-
-3. **Test Locally**
-   ```bash
-   # Run full test suite
-   make test
-
-   # Build package to verify
-   python -m build
-
-   # Test installation
-   pip install dist/*.whl
-   harvard-library-mcp --help
-   ```
-
-4. **Commit Changes**
-   ```bash
-   git add .
-   git commit -m "Release v0.1.0"
-   git push
-   ```
-
-5. **Trigger Release Workflow**
-   - Go to Actions → Release to PyPI
-   - Click "Run workflow"
-   - Set version (e.g., `0.1.0`)
-   - Set dry_run to `false` for production release
-   - Enable GitHub Release creation
-
-6. **Monitor Release**
-   - Watch workflow progress for any issues
-   - Verify PyPI publishing completes
-   - Check GitHub Release creation
-   - Test installation from PyPI
-
-#### Dry Run Testing
-
-To test the release process without publishing:
-```bash
-# Trigger workflow with:
-version: "0.1.0-test"
-dry_run: true
-create_github_release: false
-```
-
-#### Quality Gates
-
-The automated release process ensures:
-- ✅ All tests pass on Python 3.11, 3.12, 3.13
-- ✅ Code quality checks (ruff, black, isort)
-- ✅ Type checking (mypy)
+#### Automated Release Process
+The project includes comprehensive GitHub Actions for:
+- ✅ Multi-Python version testing (3.11, 3.12, 3.13)
+- ✅ Code quality checks (ruff, black, isort, mypy)
 - ✅ Security scanning (bandit, pip-audit)
-- ✅ Package validation (twine check)
-- ✅ Version consistency across files
-- ✅ Semantic versioning compliance
+- ✅ Package validation and PyPI publishing
+- ✅ GitHub Release creation
 
-#### Rollback Process
+#### Manual Release Steps
+1. Update version numbers in `pyproject.toml` and `__init__.py`
+2. Update `CHANGELOG.md` with release notes
+3. Run `make test` to ensure all tests pass
+4. Commit and push changes
+5. Trigger "Release to PyPI" workflow from GitHub Actions
 
-If a release has issues:
-1. **Yank PyPI Version** (if dangerous):
-   - Go to PyPI project page
-   - Find the problematic version
-   - Click "Yank" (keeps downloads but marks as deprecated)
+## 📄 License
 
-2. **Fix Issues**:
-   - Fix bugs in a new commit
-   - Increment version appropriately
-   - Release new version
+MIT License - see [LICENSE](LICENSE) file for details.
 
-3. **Communicate**:
-   - Update GitHub Release with notes
-   - Add entry to CHANGELOG.md
-   - Notify users if breaking changes
+## 🔗 Links & Resources
 
-### Release History
+- **PyPI Package**: https://pypi.org/project/harvard-library-mcp/
+- **GitHub Repository**: https://github.com/your-username/harvard-library-mcp
+- **Bug Reports**: https://github.com/your-username/harvard-library-mcp/issues
+- **Harvard Library API Documentation**:
+  - [LibraryCloud API](https://harvardwiki.atlassian.net/wiki/spaces/LibraryStaffDoc/pages/43287734/LibraryCloud+APIs)
+  - [LibraryCloud Overview](https://harvardwiki.atlassian.net/wiki/spaces/LibraryStaffDoc/pages/43286729/LibraryCloud)
+- **MODS XML Schema**: http://www.loc.gov/standards/mods/
 
-See [CHANGELOG.md](./CHANGELOG.md) for detailed release notes.
+## 🤝 Contributing
 
-## License
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-MIT License - see LICENSE file for details.
+### Quick Contribution Guide
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Harvard Library API Documentation
+## 📊 Project Statistics
 
-- [LibraryCloud API Documentation](https://harvardwiki.atlassian.net/wiki/spaces/LibraryStaffDoc/pages/43287734/LibraryCloud+APIs)
-- [LibraryCloud Overview](https://harvardwiki.atlassian.net/wiki/spaces/LibraryStaffDoc/pages/43286729/LibraryCloud)
+- **Total Records**: 20M+ bibliographic records
+- **Collections**: 100+ specialized library collections
+- **API Rate Limit**: 10 requests/second (configurable)
+- **Response Formats**: JSON, MODS XML
+- **Python Versions**: 3.11, 3.12, 3.13
+- **License**: MIT
+
+---
+
+**⭐ Star this repository on GitHub if you find it useful!**
+
+Made with ❤️ for the academic research community
