@@ -211,6 +211,10 @@ class HarvardRecord(BaseModel):
     """A single Harvard Library catalog record."""
 
     id: str = Field(..., description="Unique identifier for the record")
+    permalink: Optional[str] = Field(
+        default=None,
+        description="Stable catalog permalink (if available)"
+    )
     title: Optional[str] = Field(default=None, description="Title of the work")
     authors: Optional[List[str]] = Field(
         default=None,

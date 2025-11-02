@@ -4,6 +4,7 @@ from .search_tools import (
     advanced_search,
     get_collections_list,
     get_record_details,
+    parse_permalink,
     parse_mods_metadata,
     search_by_author,
     search_by_collection,
@@ -26,4 +27,5 @@ __all__ = [
     "get_record_details",
     "get_collections_list",
     "parse_mods_metadata",
+    "parse_permalink",
 ]

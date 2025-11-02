@@ -16,6 +16,7 @@ from .tools.search_tools import (
     advanced_search,
     get_collections_list,
     get_record_details,
+    parse_permalink,
     parse_mods_metadata,
     search_by_author,
     search_by_collection,
@@ -412,6 +413,19 @@ async def handle_list_tools() -> list[types.Tool]:
                 "required": ["mods_xml"]
             }
         ),
+        types.Tool(
+            name="parse_permalink",
+            description="Compute Harvard catalog permalink (alma) from identifiers or MODS",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "record_id": {"type": "string", "description": "Record identifier (optional)"},
+                    "identifiers": {"type": "object", "description": "Identifiers map (optional)"},
+                    "mods_xml": {"type": "string", "description": "MODS XML (optional)"},
+                    "mods_dict": {"type": "object", "description": "MODS dict (optional)"}
+                }
+            }
+        ),
     ]
 
 
@@ -447,6 +461,8 @@ async def handle_call_tool(name: str, arguments: dict[str, Any] | None) -> list[
             result = await get_collections_list()
         elif name == "parse_mods_metadata":
             result = await parse_mods_metadata(**arguments)
+        elif name == "parse_permalink":
+            result = await parse_permalink(**arguments)
         else:
             result = {
                 "success": False,

@@ -76,6 +76,9 @@ async def search_catalog(
             "error": str(e),
             "records": [],
             "total_count": 0,
+            "limit": limit,
+            "offset": offset,
+            "has_more": False,
         }
 
 
@@ -476,11 +479,36 @@ async def advanced_search(
 
     except Exception as e:
         logger.error(f"Error in advanced_search: {e}")
+        # Build filter summary for error path as well
+        filters = []
+        if title:
+            filters.append(f"title: {title}")
+        if author:
+            filters.append(f"author: {author}")
+        if subject:
+            filters.append(f"subject: {subject}")
+        if collection:
+            filters.append(f"collection: {collection}")
+        if origin_place:
+            filters.append(f"origin: {origin_place}")
+        if publication_place:
+            filters.append(f"pub place: {publication_place}")
+        if language:
+            filters.append(f"language: {language}")
+        if format_type:
+            filters.append(f"format: {format_type}")
+        if start_date or end_date:
+            date_range = f"{start_date or 'earliest'} to {end_date or 'latest'}"
+            filters.append(f"date range: {date_range}")
         return {
             "success": False,
             "error": str(e),
             "records": [],
             "total_count": 0,
+            "limit": limit,
+            "offset": offset,
+            "has_more": False,
+            "filters": filters,
         }
 
 
@@ -520,6 +548,94 @@ async def get_record_details(
             "success": False,
             "error": str(e),
             "record": None,
+        }
+
+
+async def parse_permalink(
+    record_id: Optional[str] = None,
+    identifiers: Optional[Dict[str, str]] = None,
+    mods_xml: Optional[str] = None,
+    mods_dict: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Compute a stable Harvard catalog permalink, if possible.
+
+    Strategy:
+    - Look for an Alma MMS ID (numbers starting with '99') in identifiers.
+    - Parse MODS XML or dict to find a recordIdentifier containing an Alma MMS ID.
+    - Fallback to scanning the provided record_id or mods_dict text.
+
+    Returns a dict with success flag and permalink (if found).
+    """
+    try:
+        import re
+        mms = None
+        pattern = re.compile(r"99\d{8,}")
+
+        # 1) identifiers
+        if identifiers:
+            for v in identifiers.values():
+                if not v:
+                    continue
+                m = pattern.search(str(v))
+                if m:
+                    mms = m.group(0)
+                    break
+
+        # 2) MODS XML or dict
+        if not mms:
+            mods_meta: Optional[ModsMetadata] = None
+            if mods_xml:
+                mods_meta = ModsMetadata.from_xml(mods_xml)
+            elif mods_dict:
+                mods_meta = ModsMetadata.from_mods_dict(mods_dict)
+
+            if mods_meta and mods_meta.record_info:
+                ri = mods_meta.record_info.get("recordIdentifier")
+                candidates = []
+                if isinstance(ri, list):
+                    candidates.extend(ri)
+                elif ri is not None:
+                    candidates.append(ri)
+
+                for cand in candidates:
+                    val = None
+                    if isinstance(cand, dict):
+                        val = cand.get("text") or cand.get("#text") or str(cand)
+                    else:
+                        val = str(cand)
+                    m = pattern.search(val)
+                    if m:
+                        mms = m.group(0)
+                        break
+
+        # 3) record_id
+        if not mms and record_id:
+            m = pattern.search(str(record_id))
+            if m:
+                mms = m.group(0)
+
+        # 4) scan mods_dict
+        if not mms and mods_dict:
+            m = pattern.search(str(mods_dict))
+            if m:
+                mms = m.group(0)
+
+        if mms:
+            return {
+                "success": True,
+                "alma_mms_id": mms,
+                "permalink": f"https://id.lib.harvard.edu/alma/{mms}/catalog",
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Could not determine Alma MMS ID",
+            }
+    except Exception as e:
+        logger.error(f"Error in parse_permalink: {e}")
+        return {
+            "success": False,
+            "error": str(e),
         }
 
 

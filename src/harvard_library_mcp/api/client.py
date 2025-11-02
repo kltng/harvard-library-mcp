@@ -1,6 +1,7 @@
 """Harvard Library API client."""
 
 import asyncio
+import re
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -288,7 +289,7 @@ class HarvardLibraryClient:
 
     async def search(
         self,
-        query: str,
+        query: Optional[str] = None,
         title: Optional[str] = None,
         author: Optional[str] = None,
         subject: Optional[str] = None,
@@ -309,7 +310,7 @@ class HarvardLibraryClient:
         Search the Harvard Library catalog.
 
         Args:
-            query: General search query
+            query: General search query (optional)
             title: Title filter
             author: Author filter
             subject: Subject filter
@@ -488,6 +489,11 @@ class HarvardLibraryClient:
                         self._extract_from_mods(mods_data, ["identifier", "0"], "")
                     )
                 if not record_id:
+                    # Fallback to a simple top-level 'id' if present
+                    record_id = self._extract_text_content(
+                        self._extract_from_mods(mods_data, ["id"], "")
+                    )
+                if not record_id:
                     # Use a generated ID if none found
                     record_id = f"harvard-{hash(str(mods_data)) % 1000000}"
 
@@ -502,7 +508,8 @@ class HarvardLibraryClient:
 
                 # Extract authors
                 authors = []
-                name_info = self._extract_from_mods(mods_data, ["name"], [])
+                # Support both MODS 'name' and alternate 'nameInfo' structures
+                name_info = self._extract_from_mods(mods_data, ["name", "nameInfo"], [])
                 if isinstance(name_info, dict):
                     name_info = [name_info]
                 elif name_info and not isinstance(name_info, list):
@@ -580,8 +587,17 @@ class HarvardLibraryClient:
                 # Parse MODS metadata
                 mods_metadata = ModsMetadata.from_mods_dict(mods_data) if mods_data else None
 
+                # Compute permalink from any available MMS ID
+                permalink = self._compute_permalink_candidate(
+                    record_id,
+                    identifiers,
+                    mods_metadata,
+                    record_data,
+                )
+
                 return HarvardRecord(
                     id=record_id,
+                    permalink=permalink,
                     title=title,
                     authors=authors if authors else None,
                     publication_date=pub_date or None,
@@ -621,8 +637,17 @@ class HarvardLibraryClient:
             if format_type == "xml" and "mods" in record_data:
                 mods_metadata = ModsMetadata.from_xml(str(record_data["mods"]))
 
+            # Compute permalink from any available MMS ID
+            permalink = self._compute_permalink_candidate(
+                record_id,
+                identifiers,
+                mods_metadata,
+                record_data,
+            )
+
             return HarvardRecord(
                 id=record_id,
+                permalink=permalink,
                 title=title,
                 authors=authors,
                 publication_date=pub_date,
@@ -648,6 +673,77 @@ class HarvardLibraryClient:
                 id=str(record_data.get("id", "unknown")),
                 raw_data=record_data,
             )
+
+    def _compute_permalink_candidate(
+        self,
+        record_id: Optional[str],
+        identifiers: Optional[Dict[str, str]] = None,
+        mods_metadata: Optional[ModsMetadata] = None,
+        record_data: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """Try to construct an Alma permalink if an MMS ID can be found.
+
+        Strategy:
+        - Prefer explicit identifiers that look like Alma MMS IDs (start with '99').
+        - Check record_info.recordIdentifier in MODS metadata.
+        - Fallback to scanning record_id and record_data for 99*-style numeric IDs.
+        """
+        try:
+            mms = None
+            pattern = re.compile(r"99\d{8,}")
+
+            # 1) Check identifiers dict
+            if identifiers:
+                for k, v in identifiers.items():
+                    if not v:
+                        continue
+                    m = pattern.search(str(v))
+                    if m:
+                        mms = m.group(0)
+                        break
+
+            # 2) Check MODS record info
+            if not mms and mods_metadata and mods_metadata.record_info:
+                rec_info = mods_metadata.record_info
+                candidates = []
+                try:
+                    ri = rec_info.get("recordIdentifier")
+                    if isinstance(ri, list):
+                        candidates.extend(ri)
+                    elif ri is not None:
+                        candidates.append(ri)
+                except Exception:
+                    pass
+
+                for cand in candidates:
+                    # cand may be dict with 'text' or a raw string
+                    val = None
+                    if isinstance(cand, dict):
+                        val = cand.get("text") or cand.get("#text") or str(cand)
+                    else:
+                        val = str(cand)
+                    m = pattern.search(val)
+                    if m:
+                        mms = m.group(0)
+                        break
+
+            # 3) Check record_id
+            if not mms and record_id:
+                m = pattern.search(str(record_id))
+                if m:
+                    mms = m.group(0)
+
+            # 4) Scan record_data textual form
+            if not mms and record_data:
+                m = pattern.search(str(record_data))
+                if m:
+                    mms = m.group(0)
+
+            if mms:
+                return f"https://id.lib.harvard.edu/alma/{mms}/catalog"
+            return None
+        except Exception:
+            return None
 
     def _extract_from_mods(self, data: Dict[str, Any], keys: list, default=None):
         """Extract value from nested MODS data using list of keys."""
