@@ -327,23 +327,6 @@ pip install harvard-library-mcp
 pip install harvard-library-mcp==0.1.0
 ```
 
-### For Maintainers
-
-#### Automated Release Process
-The project includes comprehensive GitHub Actions for:
-- ✅ Multi-Python version testing (3.11, 3.12, 3.13)
-- ✅ Code quality checks (ruff, black, isort, mypy)
-- ✅ Security scanning (bandit, pip-audit)
-- ✅ Package validation and PyPI publishing
-- ✅ GitHub Release creation
-
-#### Manual Release Steps
-1. Update version numbers in `pyproject.toml` and `__init__.py`
-2. Update `CHANGELOG.md` with release notes
-3. Run `make test` to ensure all tests pass
-4. Commit and push changes
-5. Trigger "Release to PyPI" workflow from GitHub Actions
-
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
