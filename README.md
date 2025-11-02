@@ -134,7 +134,7 @@ For any MCP-compatible client, use this JSON configuration format:
 
 ```bash
 # Clone and install in development mode
-git clone https://github.com/your-username/harvard-library-mcp.git
+git clone https://github.com/kltng/harvard-library-mcp.git
 cd harvard-library-mcp
 pip install -e .
 
@@ -229,7 +229,7 @@ The server handles:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/harvard-library-mcp.git
+git clone https://github.com/kltng/harvard-library-mcp.git
 cd harvard-library-mcp
 
 # Create virtual environment
@@ -301,14 +301,14 @@ pip install harvard-library-mcp
 
 ### From Source
 ```bash
-git clone https://github.com/your-username/harvard-library-mcp.git
+git clone https://github.com/kltng/harvard-library-mcp.git
 cd harvard-library-mcp
 pip install -e .
 ```
 
 ### Development Version
 ```bash
-pip install git+https://github.com/your-username/harvard-library-mcp.git
+pip install git+https://github.com/kltng/harvard-library-mcp.git
 ```
 
 ## 🔄 Release Process
@@ -351,8 +351,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## 🔗 Links & Resources
 
 - **PyPI Package**: https://pypi.org/project/harvard-library-mcp/
-- **GitHub Repository**: https://github.com/your-username/harvard-library-mcp
-- **Bug Reports**: https://github.com/your-username/harvard-library-mcp/issues
+- **GitHub Repository**: https://github.com/kltng/harvard-library-mcp
+- **Bug Reports**: https://github.com/kltng/harvard-library-mcp/issues
 - **Harvard Library API Documentation**:
   - [LibraryCloud API](https://harvardwiki.atlassian.net/wiki/spaces/LibraryStaffDoc/pages/43287734/LibraryCloud+APIs)
   - [LibraryCloud Overview](https://harvardwiki.atlassian.net/wiki/spaces/LibraryStaffDoc/pages/43286729/LibraryCloud)

@@ -173,3 +173,6 @@ Desktop.ini
 
 # Docker
 .dockerignore
+
+# Claude
+.claude
