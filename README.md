@@ -57,34 +57,6 @@ Cherry Studio may use the standard MCP configuration format. Add the following t
 }
 ```
 
-**Alternative Cherry Studio Format**
-If Cherry Studio uses its own format, use this configuration:
-
-```json
-{
-  "name": "Harvard Library",
-  "command": "uvx",
-  "args": ["harvard-library-mcp"],
-  "description": "Search Harvard University Library catalog - 20M+ academic records",
-  "tools": [
-    "search_catalog",
-    "search_by_title",
-    "search_by_author",
-    "search_by_subject",
-    "advanced_search",
-    "search_by_collection",
-    "search_by_date_range",
-    "search_by_geographic_origin",
-    "get_record_details",
-    "get_collections_list",
-    "parse_mods_metadata"
-  ],
-  "icon": "📚",
-  "category": "Research",
-  "version": "0.1.0"
-}
-```
-
 **Step 3: Start Using**
 1. Restart Cherry Studio
 2. The Harvard Library tools will be available in your chat interface

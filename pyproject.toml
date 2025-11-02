@@ -1,6 +1,12 @@
 [build-system]
-requires = ["hatchling", "wheel", "setuptools>=61.0"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [project]
 name = "harvard-library-mcp"
@@ -10,13 +16,12 @@ authors = [
     {name = "Harvard Library MCP Team"}
 ]
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.11"
 keywords = ["mcp", "harvard", "library", "catalog", "api", "bibliographic"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -70,9 +75,6 @@ Repository = "https://github.com/kltang/harvard-library-mcp.git"
 Issues = "https://github.com/kltang/harvard-library-mcp/issues"
 Documentation = "https://github.com/kltang/harvard-library-mcp/blob/main/README.md"
 Changelog = "https://github.com/kltang/harvard-library-mcp/blob/main/CHANGELOG.md"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/harvard_library_mcp"]
 
 [tool.black]
 line-length = 88

@@ -16,17 +16,15 @@ include pyproject.toml
 # Include all source files
 recursive-include src/harvard_library_mcp *.py
 
-# Include any static files or templates
-recursive-include src/harvard_library_mcp *.json *.yaml *.yml *.xml *.xsd
+# Include any static files or templates (add patterns as needed when files exist)
+# recursive-include src/harvard_library_mcp *.json *.yaml *.yml *.xml *.xsd
 
 # Include test files (for completeness, though they won't be installed)
 recursive-include tests *.py
 
 # Include documentation files
-recursive-include docs *.md *.rst *.txt
+recursive-include docs *.md
 
-# Include any configuration examples
-recursive-include examples *.py *.yaml *.yml *.json *.md
 
 # Include Docker files
 include Dockerfile
@@ -34,7 +32,6 @@ include docker-compose.yml
 include .dockerignore
 
 # Include development configuration files
-include .pre-commit-config.yaml
 include .gitignore
 include .env.example
 
